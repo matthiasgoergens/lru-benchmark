@@ -5,11 +5,12 @@ import time
 import pathlib as p
 import gc
 import argparse
+from functools import partial
 
 output_dir = p.Path("benchmark-output")
 
 
-def bench_hits_1(cachesize, reps):
+def bench_hits(cachesize, reps):
     r = random.Random()
     r.seed(0)
     f = ft.lru_cache(maxsize=cachesize)(id)
@@ -24,6 +25,24 @@ def bench_hits_1(cachesize, reps):
 
     for c in range(reps):
         f(r.randrange(cachesize))
+    end = time.perf_counter()
+    return end - start
+
+def bench_mixed(cachesize, reps, hits):
+    r = random.Random()
+    r.seed(0)
+    f = ft.lru_cache(maxsize=cachesize)(id)
+
+    # fill cache at random:
+    keys = list(range(cachesize))
+    r.shuffle(keys)
+    for k in keys:
+        f(k)
+
+    start = time.perf_counter()
+
+    for c in range(reps):
+        f(r.randrange(round(cachesize/hits)))
     end = time.perf_counter()
     return end - start
 
@@ -61,9 +80,11 @@ def main():
     print(kind)
     match kind:
       case 'hits':
-          bench(output, which = bench_hits_1)
+          bench(output, which = bench_hits)
       case 'misses':
           bench(output, which = bench_miss)
+      case _:
+          bench(output, partial(bench_mixed, hits=float(kind)))
 
 
 
